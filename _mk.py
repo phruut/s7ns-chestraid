@@ -8,6 +8,7 @@ from ctypes import Structure, c_long, c_ulong, sizeof, POINTER, pointer, byref, 
 
 # yes this uses SendInput from Windows API that emulates mouse / keyboard inputs
 # i couldnt get this to work with other frameworks i know of so this is a temporary solution
+# ty chatgpt :skull:
 
 # constants
 INPUT_MOUSE              =   0
@@ -107,7 +108,7 @@ class Keyboard:
 
         # get scan code from virtual key code
         scan_code = self.user32.MapVirtualKeyW(vk_code, 0)
-        
+
         inp.union.ki.wVk = vk_code
         inp.union.ki.wScan = scan_code
         inp.union.ki.dwFlags = KEYEVENTF_KEYUP if key_up else 0
@@ -122,7 +123,7 @@ class Keyboard:
         # key down
         inp = self._create_keyboard_input(key)
         self.user32.SendInput(1, byref(inp), sizeof(INPUT))
-        
+
         # hold
         hold = hold/1000
         hold_time = random.uniform(hold - (hold * 0.1), hold + (hold * 0.1))
@@ -169,14 +170,15 @@ class Mouse:
 
     # get current primary monitor absolute coords
     def _abs_coords(self, x, y):
+
         # windows expects coordinates in range 0-65535
         x = max(0, min(x, self.screen_width))
         y = max(0, min(y, self.screen_height))
-        
+
         # scale the coordinates
         scaled_x = int((x * 65535) / self.screen_width)
         scaled_y = int((y * 65535) / self.screen_height)
-        
+
         # make sure to not exceed min/max values
         return (min(65535, scaled_x), min(65535, scaled_y))
 
@@ -184,16 +186,16 @@ class Mouse:
     def _gen_human_curve(self, start_x, start_y, end_x, end_y, steps):
         control_x = random.uniform(min(start_x, end_x), max(start_x, end_x))
         control_y = random.uniform(min(start_y, end_y), max(start_y, end_y))
-        
+
         points = []
         for i in range(steps + 1):
             t = i / steps
             t = self._ease_in_out(t)
-            
+
             # calculate bezier curve points... yes thats right
             x = (1 - t)**2 * start_x + 2 * (1 - t) * t * control_x + t**2 * end_x
             y = (1 - t)**2 * start_y + 2 * (1 - t) * t * control_y + t**2 * end_y
-            
+
             points.append((int(x), int(y)))
         return points
 
@@ -204,6 +206,7 @@ class Mouse:
         return -1 + (4 - 2 * t) * t
 
     # move the cursor to screen coordinates
+    # kms
     def move(self, x, y, duration=500):
 
         # get current position
@@ -212,7 +215,7 @@ class Mouse:
         pt = POINT()
         self.user32.GetCursorPos(byref(pt))
         start_x, start_y = pt.x, pt.y
-        
+
         # calculate distance, adjust steps
         distance = math.sqrt((x - start_x)**2 + (y - start_y)**2)
         steps = max(10, min(50, int(distance / 10)))
@@ -233,15 +236,15 @@ class Mouse:
         for point_x, point_y in points:
             # convert to absolute coordinates
             abs_x, abs_y = self._abs_coords(point_x, point_y)
-            
+
             # set up movement
             inp.union.mi.dx = abs_x
             inp.union.mi.dy = abs_y
             inp.union.mi.dwFlags = MOUSEEVENTF_MOVE | MOUSEEVENTF_ABSOLUTE
-            
+
             # send movement
             self.user32.SendInput(1, byref(inp), sizeof(INPUT))
-            
+
             # add small random delay, temoorary
             time.sleep(random.uniform(step_delay * 0.8, step_delay * 1.2))
 

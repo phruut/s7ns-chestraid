@@ -8,7 +8,6 @@ from datetime import datetime, timedelta, timezone
 from _mk import Mouse, Keyboard
 
 
-
 # window things
 # -----------------------------------------
 
@@ -162,6 +161,7 @@ def afk_act():
 def automation_thread():
     global RUNNING
 
+    # if the target window is gone...
     if not wait_target_win():
         dpg.set_value('status_text', 'failed')
         dpg.set_value('status_text_hover', 'couldnt find target window')
@@ -175,14 +175,19 @@ def automation_thread():
         in_raid = False
 
         while RUNNING:
+
+            # fetch time stiuff
             utc = get_utc()
             raid_end_time = get_raid_end(next_raid_time)
 
+            # in raid
             if utc >= next_raid_time and utc < raid_end_time and not in_raid:
                 dpg.set_value('status_text', 'in raid')
                 dpg.set_value('status_text_hover', 'hi :3')
                 raid_act()
                 in_raid = True
+
+            # raid ends
             elif utc >= raid_end_time and in_raid:
                 dpg.set_value('status_text', 'reset')
                 dpg.set_value('status_text_hover', 'going back to area 11')
@@ -192,10 +197,10 @@ def automation_thread():
 
             update_status()
 
-            if dpg.get_value("anti_afk") and utc.minute % 10 == 0:
-                if last_anti_afk_minute != utc.minute:
-                    afk_act()
-                    last_anti_afk_minute = utc.minute
+            # if anti-afk is on it will do this
+            if dpg.get_value('anti_afk') and utc.minute % 10 == 0 and last_anti_afk_minute != utc.minute:
+                afk_act()
+                last_anti_afk_minute = utc.minute
 
             time.sleep(0.1)
 
@@ -214,36 +219,41 @@ def automation_thread():
 
 # status text updating yep
 def update_status():
-   if not dpg.is_dearpygui_running():
-       return
+    if not dpg.is_dearpygui_running():
+        return
 
-   utc = get_utc()
-   next_raid = get_next_raid(utc) 
+    # aaaaa
+    utc = get_utc()
+    next_raid = get_next_raid(utc) 
 
-   if not RUNNING:
-       status_text = 'inactive'
-       tooltip_text = 'waiting for start...'
-   else:
-       status_text = 'waiting'
-       remaining_time = next_raid - utc
-       total_seconds = int(remaining_time.total_seconds())
-       hours = total_seconds // 3600
-       minutes = (total_seconds % 3600) // 60
-       seconds = total_seconds % 60
+    # running status
+    if not RUNNING:
+        status_text = 'inactive'
+        tooltip_text = 'waiting for start...'
+    
+    # this part updates the hover text thing
+    else:
+        status_text = 'waiting'
+        remaining_time = next_raid - utc
+        total_seconds = int(remaining_time.total_seconds())
+        hours = total_seconds // 3600
+        minutes = (total_seconds % 3600) // 60
+        seconds = total_seconds % 60
 
-       if hours > 0:
-           countdown = f'{hours}h {minutes}m {seconds}s'
-       elif minutes > 0:
-           countdown = f'{minutes}m {seconds}s' 
-       else:
-           countdown = f'{seconds}s'
-       tooltip_text = f'next raid: {countdown}'
+        if hours > 0:
+            countdown = f'{hours}h {minutes}m {seconds}s'
+        elif minutes > 0:
+            countdown = f'{minutes}m {seconds}s' 
+        else:
+            countdown = f'{seconds}s'
+        tooltip_text = f'next raid: {countdown}'
 
-   try:
-       dpg.set_value('status_text', status_text)
-       dpg.set_value('status_text_hover', tooltip_text)
-   except SystemError:
-       pass
+    # do this cuz i dont wanna import contextlib
+    try:
+        dpg.set_value('status_text', status_text)
+        dpg.set_value('status_text_hover', tooltip_text)
+    except SystemError:
+        pass
 
 # always on top
 def aot_callback():
