@@ -59,6 +59,7 @@ def get_utc():
     return datetime.now(timezone.utc)
 
 def get_next_raid(utc, interval_seconds=7200, start_second=0):
+
     # calculate total seconds since 0:00
     current_seconds = utc.hour * 3600 + utc.minute * 60 + utc.second
 
