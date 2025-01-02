@@ -89,7 +89,7 @@ def get_next_raid(utc, interval_seconds=7200, start_second=0):
     return next_raid
 
 # raid end time
-def get_raid_end(raid_start_time, seconds=900):
+def get_raid_end(raid_start_time, seconds=800):
     raid_end = raid_start_time + timedelta(seconds=seconds)
     return raid_end
 
@@ -117,6 +117,7 @@ def moverel(x, y):
         screen_x = rect['left'] + x
         screen_y = rect['top'] + y
         mouse.move(screen_x, screen_y)
+
 
 
 # automation things 
@@ -148,8 +149,9 @@ def pre_act():
 
 # moves the player into the raid portal :D
 def raid_act():
+    time.sleep(15)
     activate_window() 
-    time.sleep(20)
+    time.sleep(1)
     keyboard.combo(['s','d'], 900)
 
 # anti-afk thing
