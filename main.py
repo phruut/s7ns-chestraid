@@ -58,33 +58,24 @@ def interval(now, interval_minutes):
 def get_utc():
     return datetime.now(timezone.utc)
 
+# gets the next raid time based on utc
 def get_next_raid(utc, interval_seconds=7200, start_second=0):
 
     # calculate total seconds since 0:00
     current_seconds = utc.hour * 3600 + utc.minute * 60 + utc.second
 
-    # calculate next raid time in seconds
+    # adjust time since start to calculate the next raid time
     time_since_start = (current_seconds - start_second) % interval_seconds
-    next_seconds = current_seconds + (interval_seconds - time_since_start) % interval_seconds
 
-    # day overlap handling.. even tho we dont need this lmao
-    days_to_add = next_seconds // (24 * 3600)
-    if days_to_add > 0:
-        next_seconds %= (24 * 3600)
-        utc += timedelta(days=days_to_add)
+    # if exactly on a raid time, the next raid is just the next interval
+    if time_since_start == 0:
+        next_seconds = current_seconds
+    else:
+        next_seconds = current_seconds + (interval_seconds - time_since_start)
 
-    # convert seconds to hours, minutes, seconds
-    hours = next_seconds // 3600
-    minutes = (next_seconds % 3600) // 60
-    seconds = next_seconds % 60
+    # convert next_seconds to day rollover safe time
+    next_raid = utc.replace(hour=0, minute=0, second=0, microsecond=0) + timedelta(seconds=next_seconds)
 
-    # create next raid datetime
-    next_raid = utc.replace(hour=hours, minute=minutes, second=seconds, microsecond=0)
-
-    # add interval if time in past
-    if next_raid <= utc:
-        next_raid += timedelta(seconds=interval_seconds)
-    
     # IM SO FUCKING COOKED HOLY SHIT im so sleepy
     return next_raid
 
@@ -128,47 +119,82 @@ def moverel(x, y):
 # afk the final event zone 11 while waiting for next raid
 def pre_act():
     activate_window()
+    dpg.set_value('status_text', 'prep...')
+
+    # move to x on raid result
     time.sleep(3)
-    moverel(745,110)                  # move to x on raid result
+    dpg.set_value('status_text', 'move x')
+    moverel(745,110)
+
+    # click
+    time.sleep(0.3)
+    dpg.set_value('status_text', 'click')
+    mouse.click()
+
+    # move cursor to tp
+    time.sleep(0.3)
+    dpg.set_value('status_text', 'move tp')
+    moverel(105, 185)
+
+    # click the icon
+    time.sleep(0.3)
+    dpg.set_value('status_text', 'click')
+    mouse.click()
+
+    # scroll down
+    time.sleep(0.3)
+    dpg.set_value('status_text', 'scroll')
+    mouse.scroll(-1000)
+
+    # move to final zone
+    time.sleep(0.3)
+    dpg.set_value('status_text', 'move 11')
+    moverel(485,360)
+
+    # click final zone
+    time.sleep(0.3)
+    dpg.set_value('status_text', 'click')
+    mouse.click()
+
+    # cannon wait
+    time.sleep(1)
+    dpg.set_value('status_text', 'wait')
+    time.sleep(9)
+
+    # hoverboard
+    dpg.set_value('status_text', 'hover')
+    keyboard.press('q')
+
+    # move to middle of final zone
     time.sleep(0.5)
-    mouse.click()                     # click
-    time.sleep(0.5)
-    moverel(105, 185)                 # move cursor to tp
-    time.sleep(0.5)
-    mouse.click()                     # click the icon
-    time.sleep(0.5)
-    mouse.scroll(-1000)               # scroll downwd
-    time.sleep(0.25)
-    moverel(485,360)                  # move to final zone
-    time.sleep(0.5)
-    mouse.click()                     # click final zone
-    time.sleep(10)
-    keyboard.press('q')               # hoverboard
-    time.sleep(0.5)
-    keyboard.combo(['w','d'], 450)    # move to middle of final zone
+    dpg.set_value('status_text', 'zone')
+    keyboard.combo(['w','d'], 450)
 
 # moves the player into the raid portal :D
 def raid_act():
     time.sleep(15)
     activate_window() 
     time.sleep(1)
+    dpg.set_value('status_text', 'moving')
     keyboard.combo(['s','d'], 900)
 
 # anti-afk thing
 def afk_act():
     activate_window()
     time.sleep(1)
+    dpg.set_value('status_text', 'jump!')
     keyboard.press('space')
 
 # automation thread
 def automation_thread():
-    global RUNNING
+    global RUNNING, HWND
 
     # if the target window is gone...
     if not wait_target_win():
         dpg.set_value('status_text', 'failed')
         dpg.set_value('status_text_hover', 'couldnt find target window')
         RUNNING = False
+        HWND = None
         return
 
     try:
@@ -185,27 +211,22 @@ def automation_thread():
 
             # in raid
             if utc >= next_raid_time and utc < raid_end_time and not in_raid:
-                dpg.set_value('status_text', 'in raid')
-                dpg.set_value('status_text_hover', 'hi :3')
                 raid_act()
                 in_raid = True
 
             # raid ends
             elif utc >= raid_end_time and in_raid:
-                dpg.set_value('status_text', 'reset')
-                dpg.set_value('status_text_hover', 'going back to area 11')
                 pre_act()
                 in_raid = False
                 next_raid_time = get_next_raid(utc)  # calculate next raid after current ends
-
-            update_status()
 
             # if anti-afk is on it will do this
             if dpg.get_value('anti_afk') and utc.minute % 10 == 0 and last_anti_afk_minute != utc.minute:
                 afk_act()
                 last_anti_afk_minute = utc.minute
 
-            time.sleep(0.1)
+            update_status()
+            time.sleep(0.2)
 
     except Exception as e:
         print(f'automation thread: {e}')
@@ -233,7 +254,7 @@ def update_status():
     if not RUNNING:
         status_text = 'inactive'
         tooltip_text = 'waiting for start...'
-    
+
     # this part updates the hover text thing
     else:
         status_text = 'waiting'
@@ -251,7 +272,7 @@ def update_status():
             countdown = f'{seconds}s'
         tooltip_text = f'next raid: {countdown}'
 
-    # do this cuz i dont wanna import contextlib
+    # do this cuz idk
     try:
         dpg.set_value('status_text', status_text)
         dpg.set_value('status_text_hover', tooltip_text)
